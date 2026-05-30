@@ -1362,6 +1362,10 @@
                     <label class="form-label">Clave de Seguridad (API KEY)</label>
                     <input type="password" class="form-input" id="api-key-input" placeholder="Ingresa tu clave segura">
                 </div>
+                <div class="form-group" id="group-api-sheet">
+                    <label class="form-label">Nombre de la Hoja (Google Sheets)</label>
+                    <input type="text" class="form-input" id="api-sheet-input" placeholder="Hoja 1">
+                </div>
                 
                 <div class="connection-status" style="margin-top: 10px;">
                     <span class="status-dot online" id="modal-conn-dot"></span>
@@ -6252,6 +6256,7 @@
         // API CONFIGURATION STATE
         let API_URL = localStorage.getItem('ortegon_api_url') || 'https://script.google.com/macros/s/AKfycbzu_pgHHzvMOthesa8Y2pf8NurvSF8uahoT4Lm3-GRQfKY2AHksqHyhSYV1NgAwW82e0Q/exec';
         let API_KEY = localStorage.getItem('ortegon_api_key') || 'pon-tu-clave-segura-aqui';
+        let API_SHEET = localStorage.getItem('ortegon_api_sheet') || 'Hoja 1';
         let DATA_SOURCE = localStorage.getItem('ortegon_data_source') || 'api'; // 'api' or 'local'
 
         // MAIN MEMORY STORE FOR THE APPLICATION
@@ -6283,6 +6288,7 @@
             // Set initial state of form controls
             document.getElementById('api-url-input').value = API_URL;
             document.getElementById('api-key-input').value = API_KEY;
+            document.getElementById('api-sheet-input').value = API_SHEET;
             document.getElementById('data-source-select').value = DATA_SOURCE;
             toggleAPIFormFields();
             
@@ -6300,12 +6306,15 @@
             const source = document.getElementById('data-source-select').value;
             const urlGroup = document.getElementById('group-api-url');
             const keyGroup = document.getElementById('group-api-key');
+            const sheetGroup = document.getElementById('group-api-sheet');
             if (source === 'local') {
                 urlGroup.style.display = 'none';
                 keyGroup.style.display = 'none';
+                sheetGroup.style.display = 'none';
             } else {
                 urlGroup.style.display = 'flex';
                 keyGroup.style.display = 'flex';
+                sheetGroup.style.display = 'flex';
             }
         }
 
@@ -6380,14 +6389,17 @@
                 const source = document.getElementById('data-source-select').value;
                 const url = document.getElementById('api-url-input').value.trim();
                 const key = document.getElementById('api-key-input').value.trim();
+                const sheet = document.getElementById('api-sheet-input').value.trim() || 'Hoja 1';
                 
                 localStorage.setItem('ortegon_data_source', source);
                 localStorage.setItem('ortegon_api_url', url);
                 localStorage.setItem('ortegon_api_key', key);
+                localStorage.setItem('ortegon_api_sheet', sheet);
                 
                 DATA_SOURCE = source;
                 API_URL = url;
                 API_KEY = key;
+                API_SHEET = sheet;
                 
                 showToast('Ajustes guardados correctamente.', 'success');
                 closeModal();
@@ -6611,7 +6623,7 @@
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 seconds timeout
                 
-                const response = await fetch(`${API_URL}?action=data&key=${API_KEY}`, {
+                const response = await fetch(`${API_URL}?action=data&sheet=${API_SHEET}&key=${API_KEY}`, {
                     method: 'GET',
                     signal: controller.signal
                 });
