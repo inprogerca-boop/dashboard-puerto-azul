@@ -1025,6 +1025,27 @@
                 max-width: 100%;
             }
         }
+
+        /* Interactive 3D Model Localizer Styles */
+        .interactive-svg path {
+            fill: rgba(59, 130, 246, 0);
+            stroke: transparent;
+            stroke-width: 0;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: all 0.3s ease;
+        }
+        .interactive-svg path:hover {
+            fill: rgba(59, 130, 246, 0.08);
+            stroke: transparent;
+        }
+        .interactive-svg path.active {
+            fill: transparent;
+            stroke: transparent;
+        }
+        [data-theme="light"] .interactive-svg path {
+            stroke: transparent;
+        }
     </style>
 </head>
 <body>
@@ -1048,6 +1069,9 @@
                 </a>
                 <a href="https://wa.me/584141287891" target="_blank" style="font-size: 0.68rem; color: #64748b; font-weight: 500; text-decoration: none; display: flex; align-items: center; gap: 6px; transition: color 0.2s;" onmouseover="this.style.color='#34d399'" onmouseout="this.style.color='#64748b'">
                     <i data-lucide="message-square" style="width: 10px; height: 10px;"></i> +58 414 128 7891
+                </a>
+                <a href="https://instagram.com/inprogerca" target="_blank" style="font-size: 0.68rem; color: #64748b; font-weight: 500; text-decoration: none; display: flex; align-items: center; gap: 6px; transition: color 0.2s;" onmouseover="this.style.color='#ec4899'" onmouseout="this.style.color='#64748b'">
+                    <i data-lucide="instagram" style="width: 10px; height: 10px;"></i> @inprogerca
                 </a>
                 <a href="mailto:contacto@inproger.com" style="font-size: 0.68rem; color: #64748b; font-weight: 500; text-decoration: none; display: flex; align-items: center; gap: 6px; transition: color 0.2s;" onmouseover="this.style.color='#f59e0b'" onmouseout="this.style.color='#64748b'">
                     <i data-lucide="mail" style="width: 10px; height: 10px;"></i> contacto@inproger.com
@@ -1226,6 +1250,31 @@
 
             <!-- CHARTS GRID -->
             <section class="dashboard-charts-grid">
+                <!-- 3D MODEL LOCALIZER CARD -->
+                <div class="chart-card col-span-2" id="3d-localizer-card" style="min-height: auto; padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+                    <div class="chart-header" style="margin-bottom: 0;">
+                        <div class="chart-title-group">
+                            <h3 class="chart-card-title"><i data-lucide="box" style="color: var(--primary-color);"></i> Localizador Estructural Interactivo 3D — Planta de Fundaciones</h3>
+                            <span class="chart-card-subtitle">Haz clic en un elemento del modelo 3D para filtrar la base de datos o selecciona un filtro estructural para resaltarlo en el plano</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: center; position: relative; width: 100%; max-width: 900px; margin: 0 auto; overflow: hidden; border-radius: 16px; border: 1px solid var(--border-color); background: var(--bg-primary); box-shadow: inset 0 2px 8px rgba(0,0,0,0.15); width: 100%;">
+                        <div style="position: relative; width: 100%; padding-bottom: 57.81%; height: 0;">
+                            <!-- Image layer with transition -->
+                            <img id="3d-localizer-img" src="planta_fundaciones.png" alt="Planta de Fundaciones 3D" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; transition: opacity 0.15s ease-in-out;">
+                            
+                            <!-- Aligned interactive SVG overlay -->
+                            <svg viewBox="0 0 1024 592" class="interactive-svg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none;">
+                                <!-- Losa de Fundación -->
+                                <path id="svg-path-losa" d="M 128 322 L 234 290 L 230 262 L 290 240 L 290 270 L 330 258 L 476 160 L 515 178 L 512 200 L 640 185 L 920 234 L 880 300 L 536 342 L 310 398 Z" title="LOSA DE FUNDACION" />
+                                <!-- Viga Borde de Losa -->
+                                <path id="svg-path-viga" d="M 115 372 L 298 424 L 310 422 L 310 405 L 128 355 Z" title="VIGA DE BORDE" />
+                                <!-- Zapatas (combined path) -->
+                                <path id="svg-path-zapata" d="M 312 422 L 358 436 L 372 426 L 326 412 Z M 382 396 L 428 410 L 442 400 L 396 386 Z M 482 368 L 528 382 L 542 372 L 496 358 Z M 612 334 L 658 348 L 672 338 L 626 324 Z M 712 308 L 758 322 L 772 312 L 726 298 Z M 812 282 L 858 296 L 872 286 L 826 272 Z" title="ZAPATA" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
                 <!-- Chart 1: Acero por Elemento -->
                 <div class="chart-card">
                     <div class="chart-header">
@@ -6561,6 +6610,28 @@
                     renderTable();
                 });
             });
+
+            // 3D Model Localizer SVG clicks
+            document.querySelectorAll('.interactive-svg path').forEach(path => {
+                path.addEventListener('click', () => {
+                    const id = path.id;
+                    let targetValue = '';
+                    if (id === 'svg-path-losa') targetValue = 'LOSA DE FUNDACION';
+                    else if (id === 'svg-path-viga') targetValue = 'VIGA DE BORDE';
+                    else if (id === 'svg-path-zapata') targetValue = 'ZAPATA';
+                    
+                    if (filterState.elemento === targetValue) {
+                        filterState.elemento = '';
+                        document.getElementById('filter-elemento').value = '';
+                        showToast('Filtro de elemento estructural desactivado.', 'info');
+                    } else {
+                        filterState.elemento = targetValue;
+                        document.getElementById('filter-elemento').value = targetValue;
+                        showToast(`Filtrado por elemento: ${targetValue}`, 'success');
+                    }
+                    onFilterChanged();
+                });
+            });
         }
 
         function navigateToPanel(target) {
@@ -6830,6 +6901,49 @@
             tableCurrentPage = 1;
             renderTable();
             renderPartidasSummary();
+            update3DLocalizer();
+        }
+
+        // UPDATE 3D MODEL LOCALIZER HIGHLIGHTS
+        function update3DLocalizer() {
+            const elFilter = (filterState.elemento || '').toUpperCase().trim();
+            const levelFilter = (filterState.nombre_nivel || '').toUpperCase().trim();
+            const card = document.getElementById('3d-localizer-card');
+            const localizerImg = document.getElementById('3d-localizer-img');
+            
+            // Toggle visibility based on level (currently only Planta de Fundaciones has a 3D model)
+            if (levelFilter && levelFilter !== 'PLANTA DE FUNDACIONES') {
+                card.style.display = 'none';
+                return;
+            } else {
+                card.style.display = 'flex';
+            }
+
+            // Remove active classes
+            document.querySelectorAll('.interactive-svg path').forEach(p => p.classList.remove('active'));
+
+            // Default image (labeled blueprint)
+            let targetImg = 'planta_fundaciones.png';
+
+            if (elFilter.includes('LOSA')) {
+                document.getElementById('svg-path-losa').classList.add('active');
+                targetImg = 'planta_fundaciones_losa.png';
+            } else if (elFilter.includes('VIGA') || elFilter.includes('BORDE')) {
+                document.getElementById('svg-path-viga').classList.add('active');
+                targetImg = 'planta_fundaciones_viga.png';
+            } else if (elFilter.includes('ZAPATA')) {
+                document.getElementById('svg-path-zapata').classList.add('active');
+                targetImg = 'planta_fundaciones_zapatas.png';
+            }
+
+            // Smooth image transition crossfade
+            if (localizerImg && !localizerImg.src.endsWith(targetImg)) {
+                localizerImg.style.opacity = '0.2';
+                setTimeout(() => {
+                    localizerImg.src = targetImg;
+                    localizerImg.style.opacity = '1';
+                }, 120);
+            }
         }
 
         function renderFilterTags() {
