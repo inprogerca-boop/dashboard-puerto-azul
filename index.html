@@ -7680,13 +7680,11 @@
             }
 
             let csvContent = "data:text/csv;charset=utf-8,";
-            csvContent += "COVENIN,CAPITULO,DESCRIPCION,UNIDAD,CANTIDAD TOTAL,COMPUTOS
-";
+            csvContent += "COVENIN,CAPITULO,DESCRIPCION,UNIDAD,CANTIDAD TOTAL,COMPUTOS\r\n";
 
             partidasList.forEach(p => {
                 let desc = p.descripcion.replace(/"/g, '""');
-                if (desc.includes(',') || desc.includes('
-') || desc.includes('"')) {
+                if (desc.includes(',') || desc.includes('\n') || desc.includes('"')) {
                     desc = `"${desc}"`;
                 }
                 
@@ -7696,8 +7694,7 @@
                 }
 
                 const line = [p.covenin, cap, desc, p.unidad, p.qty.toFixed(2), p.computosCount];
-                csvContent += line.join(",") + "
-";
+                csvContent += line.join(",") + "\r\n";
             });
 
             const encodedUri = encodeURI(csvContent);
