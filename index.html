@@ -303,6 +303,27 @@
             box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
         }
 
+        .btn-purple {
+            background-color: var(--purple-color);
+            color: #0f172a;
+            border-color: var(--purple-color);
+        }
+
+        [data-theme="light"] .btn-purple {
+            color: #ffffff;
+        }
+
+        .btn-purple:hover {
+            opacity: 0.95;
+            color: #0f172a;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25);
+        }
+
+        [data-theme="light"] .btn-purple:hover {
+            color: #ffffff;
+        }
+
+
         .btn-icon {
             padding: 10px;
             border-radius: 10px;
@@ -1367,8 +1388,9 @@
                         <input type="text" class="search-input" id="search-box-partidas" placeholder="Buscar por partida, covenin, capítulo...">
                     </div>
                     
-                    <div class="table-actions-right">
+                    <div class="table-actions-right" style="display: flex; gap: 8px;">
                         <button class="btn" id="btn-export-partidas-csv"><i data-lucide="download"></i> Exportar Resumen</button>
+                        <button class="btn btn-purple" id="btn-export-partidas-pdf"><i data-lucide="file-text"></i> Exportar PDF</button>
                     </div>
                 </div>
 
@@ -6591,6 +6613,10 @@
             // Partidas CSV Export
             document.getElementById('btn-export-partidas-csv').addEventListener('click', exportPartidasCSV);
 
+            // Partidas PDF Export
+            document.getElementById('btn-export-partidas-pdf').addEventListener('click', exportPartidasPDF);
+
+
             // Sorting click on headers
             const headers = document.querySelectorAll('#data-table th');
             headers.forEach(h => {
@@ -7832,6 +7858,384 @@
             document.body.removeChild(link);
             showToast('Resumen de partidas exportado exitosamente.', 'success');
         }
+
+        // EXPORT PARTIDAS SUMMARY TO CORPORATE PDF
+        function exportPartidasPDF() {
+            const searchVal = document.getElementById('search-box-partidas').value.toLowerCase().trim();
+            
+            // Group filteredData by DESCRIPCIÓN
+            const groups = {};
+            filteredData.forEach(row => {
+                const rawDesc = row.DESCRIPCIÓN || 'Sin Descripción';
+                const desc = rawDesc.trim();
+                const descKey = desc.toUpperCase();
+
+                if (!groups[descKey]) {
+                    groups[descKey] = {
+                        descripcion: desc,
+                        covenin: row.COVENIN || 'S/C',
+                        capitulo: row.CAPITULO || '',
+                        unidad: row.UNIDAD || '',
+                        qty: 0,
+                        computosCount: 0
+                    };
+                }
+                groups[descKey].computosCount++;
+
+                const unit = (row.UNIDAD || '').toUpperCase();
+                if (unit === 'KGF') {
+                    groups[descKey].qty += row['TOTAL KGF'] || 0;
+                } else if (unit === 'M2') {
+                    groups[descKey].qty += row['TOTAL m2'] || 0;
+                } else if (unit === 'M3') {
+                    groups[descKey].qty += row['TOTAL m3'] || 0;
+                } else {
+                    groups[descKey].qty += row['TOTAL m3'] || row['TOTAL m2'] || row['TOTAL KGF'] || 0;
+                }
+            });
+
+            let partidasList = Object.values(groups);
+
+            if (searchVal) {
+                partidasList = partidasList.filter(p => {
+                    return p.descripcion.toLowerCase().includes(searchVal) || 
+                           p.covenin.toLowerCase().includes(searchVal) || 
+                           p.capitulo.toLowerCase().includes(searchVal);
+                });
+            }
+
+            if (partidasList.length === 0) {
+                showToast('No hay datos disponibles para exportar a PDF.', 'danger');
+                return;
+            }
+
+            // Crawl Obra & Cliente
+            let nameObra = "Suministro y Montaje de Columnas y Cartelas Metálicas Conduven - Nivel 3 EPF";
+            let nameCliente = "EPF";
+            let locationObra = "SAN DIEGO DE LOS ALTOS, ESTADO MIRANDA";
+            
+            let nameObraSet = false;
+            let nameClienteSet = false;
+            let locationObraSet = false;
+
+            if (rawData && rawData.length > 0) {
+                for (const row of rawData) {
+                    for (const key in row) {
+                        const val = (row[key] || "").toString().trim();
+                        if (!val) continue;
+                        const normalizedKey = key.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+                        
+                        if ((normalizedKey === "nombre de la obra" || normalizedKey === "obra") && !nameObraSet) {
+                            nameObra = val;
+                            nameObraSet = true;
+                        }
+                        if ((normalizedKey === "nombre del cliente" || normalizedKey === "cliente" || normalizedKey === "contratante") && !nameClienteSet) {
+                            nameCliente = val;
+                            nameClienteSet = true;
+                        }
+                        if ((normalizedKey === "ubicacion" || normalizedKey === "ubicacion de la obra") && !locationObraSet) {
+                            locationObra = val;
+                            locationObraSet = true;
+                        }
+                    }
+                    if (nameObraSet && nameClienteSet && locationObraSet) break;
+                }
+            }
+
+            // Open popup print window
+            const printWindow = window.open('', '_blank', 'width=950,height=1000');
+            if (!printWindow) {
+                showToast('⚠️ Popup bloqueado. Por favor permite popups para exportar el reporte PDF.', 'warning');
+                return;
+            }
+
+            // Build print content
+            let html = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Resumen de Partidas - ${nameObra.substring(0, 30)}...</title>
+    <style>
+        @page {
+            size: letter portrait;
+            margin: 15mm 15mm 15mm 15mm;
+        }
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #000000;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #1a1a1a;
+            padding-bottom: 12px;
+            margin-bottom: 15px;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            width: 60%;
+        }
+        .logo-box {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 80px;
+            height: 50px;
+            overflow: hidden;
+        }
+        .logo-img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .company-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .company-name {
+            font-size: 14px;
+            font-weight: 800;
+            color: #000000;
+            letter-spacing: -0.2px;
+            margin: 0;
+        }
+        .company-slogan {
+            font-size: 8px;
+            color: #475569;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.2px;
+            margin: 2px 0 0 0;
+        }
+        .header-right {
+            text-align: right;
+            font-size: 9px;
+            color: #475569;
+            width: 35%;
+        }
+        .header-right p {
+            margin: 2px 0;
+        }
+        .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            box-shadow: none;
+        }
+        .meta-table td {
+            padding: 4px 6px;
+            vertical-align: top;
+            font-size: 10px;
+            border: none;
+        }
+        .meta-label {
+            font-weight: 800;
+            color: #000000;
+            width: 18%;
+            text-transform: uppercase;
+        }
+        .meta-value {
+            color: #334155;
+        }
+        .title-section {
+            text-align: center;
+            margin: 15px 0 20px 0;
+        }
+        .main-title {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            margin: 0;
+            color: #000000;
+            text-transform: uppercase;
+        }
+        .sub-title {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin: 3px 0 0 0;
+            color: #475569;
+            text-transform: uppercase;
+        }
+        .budget-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 40px;
+        }
+        .budget-table th {
+            background-color: #f1f5f9;
+            border: 1px solid #000000;
+            color: #000000;
+            font-weight: 800;
+            font-size: 9px;
+            padding: 6px 8px;
+            text-align: center;
+            text-transform: uppercase;
+        }
+        .budget-table td {
+            border: 1px solid #000000;
+            padding: 6px 8px;
+            font-size: 9px;
+            color: #000000;
+            vertical-align: middle;
+        }
+        .budget-table tr {
+            page-break-inside: avoid;
+        }
+        .desc-cell {
+            font-weight: bold;
+            text-transform: uppercase;
+            line-height: 1.3;
+        }
+        .num-cell {
+            text-align: center;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+        }
+        .qty-cell {
+            text-align: right;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 10px;
+        }
+        .signature-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 60px;
+            page-break-inside: avoid;
+        }
+        .signature-box {
+            width: 42%;
+            text-align: center;
+        }
+        .sig-line {
+            border-top: 1px dashed #000000;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+        .sig-title {
+            font-size: 9px;
+            font-weight: 800;
+            color: #000000;
+            text-transform: uppercase;
+        }
+        .sig-subtitle {
+            font-size: 8px;
+            color: #475569;
+            margin-top: 2px;
+        }
+    </style>
+</head>
+<body>
+    <!-- HEADER -->
+    <div class="header-container">
+        <div class="header-left">
+            <div class="logo-box">
+                <img src="logo.png" class="logo-img" alt="Logo Inproger">
+            </div>
+            <div class="company-info">
+                <h1 class="company-name">INPROGER, C.A.</h1>
+                <p class="company-slogan">Ingeniería • Proyectos • Gerencia • Construcción</p>
+            </div>
+        </div>
+        <div class="header-right">
+            <p><strong>RIF:</strong> J-507322076</p>
+            <p>Caracas, Venezuela</p>
+            <p>contacto@inproger.com | www.inproger.com</p>
+        </div>
+    </div>
+
+    <!-- METADATOS -->
+    <table class="meta-table">
+        <tr>
+            <td class="meta-label">Obra:</td>
+            <td class="meta-value"><strong>${nameObra}</strong></td>
+        </tr>
+        <tr>
+            <td class="meta-label">Ubicación:</td>
+            <td class="meta-value">${locationObra}</td>
+        </tr>
+        <tr>
+            <td class="meta-label">Contratante:</td>
+            <td class="meta-value"><strong>${nameCliente}</strong></td>
+        </tr>
+    </table>
+
+    <!-- TITULO -->
+    <div class="title-section">
+        <h2 class="main-title">Presupuesto</h2>
+        <h3 class="sub-title">Resumen de Partidas</h3>
+    </div>
+
+    <!-- TABLA DE PARTIDAS -->
+    <table class="budget-table">
+        <thead>
+            <tr>
+                <th style="width: 8%;">Part No.</th>
+                <th style="width: 54%;">Descripción</th>
+                <th style="width: 14%;">Covenin</th>
+                <th style="width: 10%;">Unidad</th>
+                <th style="width: 14%;">Cantidad</th>
+            </tr>
+        </thead>
+        <tbody>
+    ${partidasList.map((p, index) => {
+        const formattedQty = p.qty.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return `
+            <tr>
+                <td style="text-align: center; font-weight: bold;">${index + 1}</td>
+                <td class="desc-cell">${p.descripcion}</td>
+                <td class="num-cell">${p.covenin}</td>
+                <td style="text-align: center; font-weight: bold;">${p.unidad}</td>
+                <td class="qty-cell">${formattedQty}</td>
+            </tr>
+        `;
+    }).join('')}
+        </tbody>
+    </table>
+
+    <!-- SECCION DE FIRMAS -->
+    <div class="signature-container">
+        <div class="signature-box">
+            <div class="sig-line"></div>
+            <div class="sig-title">Por el Contratante / Cliente</div>
+            <div class="sig-subtitle">${nameCliente}</div>
+        </div>
+        <div class="signature-box">
+            <div class="sig-line"></div>
+            <div class="sig-title">Por INPROGER, C.A.</div>
+            <div class="sig-subtitle">Ingeniería y Construcción</div>
+        </div>
+    </div>
+</body>
+</html>
+            `;
+
+            printWindow.document.write(html);
+            printWindow.document.close();
+
+            // Fire standard browser print after a slight delay to allow the logo/images to fully load
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 600);
+
+            showToast('Reporte PDF del resumen generado con éxito.', 'success');
+        }
+
     </script>
 </body>
 </html>
