@@ -321,7 +321,7 @@
         /* KPIs Row */
         .kpis-grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 20px;
         }
 
@@ -968,7 +968,7 @@
         /* Responsive Breakpoints */
         @media (max-width: 1200px) {
             .kpis-grid {
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             }
         }
 
@@ -1046,6 +1046,9 @@
             </li>
             <li class="menu-item" data-target="concretos-panel">
                 <a href="#concretos-panel"><i data-lucide="layers"></i> Concretos y Encofrados</a>
+            </li>
+            <li class="menu-item" data-target="resumen-partidas-panel">
+                <a href="#resumen-partidas-panel"><i data-lucide="list-checks"></i> Resumen de Partidas</a>
             </li>
             <li class="menu-item" data-target="datos-panel">
                 <a href="#datos-panel"><i data-lucide="database"></i> Explorador de Datos</a>
@@ -1135,15 +1138,26 @@
                     <div class="kpi-sparkline" id="spark-excavation"></div>
                 </div>
 
-                <!-- KPI 5: Elementos -->
+                <!-- KPI 5: Cómputos -->
                 <div class="kpi-card elements">
                     <div class="kpi-header">
-                        <span class="kpi-title">Partidas</span>
+                        <span class="kpi-title">Cómputos</span>
                         <div class="kpi-icon-wrapper"><i data-lucide="hash"></i></div>
                     </div>
                     <div class="kpi-value" id="kpi-elements">139</div>
-                    <div class="kpi-subtitle"><span style="color: var(--warning-color); font-weight: 600;">Cómputos</span> registrados</div>
+                    <div class="kpi-subtitle"><span style="color: var(--warning-color); font-weight: 600;">Cómputos</span> realizados</div>
                     <div class="kpi-sparkline" id="spark-elements"></div>
+                </div>
+
+                <!-- KPI 6: Partidas -->
+                <div class="kpi-card elements" style="border-left: 4px solid var(--purple-color);">
+                    <div class="kpi-header">
+                        <span class="kpi-title">Partidas</span>
+                        <div class="kpi-icon-wrapper"><i data-lucide="list"></i></div>
+                    </div>
+                    <div class="kpi-value" id="kpi-partidas">11</div>
+                    <div class="kpi-subtitle"><span style="color: var(--purple-color); font-weight: 600;">Partidas</span> de obra</div>
+                    <div class="kpi-sparkline" id="spark-partidas"></div>
                 </div>
             </section>
 
@@ -1179,14 +1193,8 @@
                         </select>
                     </div>
                     <div class="filter-group">
-                        <label class="filter-label">Nivel Inferior</label>
-                        <select class="select-custom" id="filter-nivel-inf">
-                            <option value="">Todos los Niveles</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label class="filter-label">Nivel Superior</label>
-                        <select class="select-custom" id="filter-nivel-sup">
+                        <label class="filter-label">Nombre de Nivel</label>
+                        <select class="select-custom" id="filter-nombre-nivel">
                             <option value="">Todos los Niveles</option>
                         </select>
                     </div>
@@ -1272,6 +1280,46 @@
                     <div class="chart-container">
                         <canvas id="chart-scatter-len-weight"></canvas>
                     </div>
+                </div>
+            </section>
+
+            <!-- RESUMEN DE PARTIDAS PANEL -->
+            <section class="table-section" id="resumen-partidas-panel" style="display: none;">
+                <div class="chart-header" style="margin-bottom: 0;">
+                    <div class="chart-title-group">
+                        <h3 class="chart-card-title"><i data-lucide="list-checks" style="color: var(--primary-color);"></i> Resumen de Partidas de Obra</h3>
+                        <span class="chart-card-subtitle">Cómputos métricos agrupados por descripción de partida única</span>
+                    </div>
+                </div>
+                
+                <div class="table-controls">
+                    <div class="search-wrapper">
+                        <i data-lucide="search" class="search-icon"></i>
+                        <input type="text" class="search-input" id="search-box-partidas" placeholder="Buscar por partida, covenin, capítulo...">
+                    </div>
+                    
+                    <div class="table-actions-right">
+                        <button class="btn" id="btn-export-partidas-csv"><i data-lucide="download"></i> Exportar Resumen</button>
+                    </div>
+                </div>
+
+                <!-- Table Container -->
+                <div class="table-container">
+                    <table id="partidas-table">
+                        <thead>
+                            <tr>
+                                <th>COVENIN</th>
+                                <th>CAPÍTULO</th>
+                                <th style="width: 45%;">DESCRIPCIÓN DE LA PARTIDA</th>
+                                <th>UNIDAD</th>
+                                <th>CANTIDAD TOTAL</th>
+                                <th>CÓMPUTOS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="partidas-table-body">
+                            <!-- Dynamic aggregated rows -->
+                        </tbody>
+                    </table>
                 </div>
             </section>
 
@@ -6267,8 +6315,7 @@
             capitulo: '',
             diametro: '',
             posicion: '',
-            nivel_inf: '',
-            nivel_sup: ''
+            nombre_nivel: ''
         };
 
         // PAGINATION & SORTING STATE
@@ -6432,12 +6479,8 @@
                 filterState.posicion = e.target.value;
                 onFilterChanged();
             });
-            document.getElementById('filter-nivel-inf').addEventListener('change', (e) => {
-                filterState.nivel_inf = e.target.value;
-                onFilterChanged();
-            });
-            document.getElementById('filter-nivel-sup').addEventListener('change', (e) => {
-                filterState.nivel_sup = e.target.value;
+            document.getElementById('filter-nombre-nivel').addEventListener('change', (e) => {
+                filterState.nombre_nivel = e.target.value;
                 onFilterChanged();
             });
 
@@ -6447,15 +6490,13 @@
                 filterState.capitulo = '';
                 filterState.diametro = '';
                 filterState.posicion = '';
-                filterState.nivel_inf = '';
-                filterState.nivel_sup = '';
+                filterState.nombre_nivel = '';
                 
                 document.getElementById('filter-elemento').value = '';
                 document.getElementById('filter-capitulo').value = '';
                 document.getElementById('filter-diametro').value = '';
                 document.getElementById('filter-posicion').value = '';
-                document.getElementById('filter-nivel-inf').value = '';
-                document.getElementById('filter-nivel-sup').value = '';
+                document.getElementById('filter-nombre-nivel').value = '';
                 
                 onFilterChanged();
                 showToast('Filtros reestablecidos.', 'success');
@@ -6476,6 +6517,12 @@
 
             // CSV Export
             document.getElementById('btn-export-csv').addEventListener('click', exportToCSV);
+            
+            // Partidas Search Box
+            document.getElementById('search-box-partidas').addEventListener('input', renderPartidasSummary);
+            
+            // Partidas CSV Export
+            document.getElementById('btn-export-partidas-csv').addEventListener('click', exportPartidasCSV);
 
             // Sorting click on headers
             const headers = document.querySelectorAll('#data-table th');
@@ -6504,13 +6551,15 @@
                 document.querySelector('.kpis-grid').style.display = 'grid';
                 document.querySelector('.filter-section').style.display = 'block';
                 document.querySelector('.dashboard-charts-grid').style.display = 'grid';
-                document.querySelector('.table-section').style.display = 'flex';
+                document.getElementById('resumen-partidas-panel').style.display = 'none';
+                document.getElementById('datos-panel').style.display = 'flex';
                 document.getElementById('main-title').innerText = "COMP-PUERTO AZUL";
             } else if (target === 'aceros-panel') {
                 document.querySelector('.kpis-grid').style.display = 'grid';
                 document.querySelector('.filter-section').style.display = 'block';
                 document.querySelector('.dashboard-charts-grid').style.display = 'grid';
-                document.querySelector('.table-section').style.display = 'none';
+                document.getElementById('resumen-partidas-panel').style.display = 'none';
+                document.getElementById('datos-panel').style.display = 'none';
                 document.getElementById('main-title').innerText = "CONTROL DE ACEROS";
                 
                 // Focus on Steel filters
@@ -6720,28 +6769,17 @@
             if (diametros.includes(oldDiametro)) selDiametro.value = oldDiametro;
             if (posiciones.includes(oldPosicion)) selPosicion.value = oldPosicion;
 
-            // Populate Nivel Inferior & Superior
-            const nivelesInf = [...new Set(rawData.map(r => r['NIVEL INF.'] !== undefined ? String(r['NIVEL INF.']) : '').filter(n => n && n !== '-'))].sort();
-            const nivelesSup = [...new Set(rawData.map(r => r['NIVEL SUP.'] !== undefined ? String(r['NIVEL SUP.']) : '').filter(n => n && n !== '-'))].sort();
+            // Populate Nombre de Nivel
+            const nombresNivel = [...new Set(rawData.map(r => r['NOMBRE DE NIVEL'] || '').filter(Boolean))].sort();
+            const selNombreNivel = document.getElementById('filter-nombre-nivel');
+            const oldNombreNivel = selNombreNivel.value;
 
-            const selNivelInf = document.getElementById('filter-nivel-inf');
-            const selNivelSup = document.getElementById('filter-nivel-sup');
-
-            const oldNivelInf = selNivelInf.value;
-            const oldNivelSup = selNivelSup.value;
-
-            selNivelInf.innerHTML = '<option value="">Todos los Niveles</option>';
-            nivelesInf.forEach(n => {
-                selNivelInf.innerHTML += `<option value="${n}">${n} m</option>`;
+            selNombreNivel.innerHTML = '<option value="">Todos los Niveles</option>';
+            nombresNivel.forEach(n => {
+                selNombreNivel.innerHTML += `<option value="${n}">${n}</option>`;
             });
 
-            selNivelSup.innerHTML = '<option value="">Todos los Niveles</option>';
-            nivelesSup.forEach(n => {
-                selNivelSup.innerHTML += `<option value="${n}">${n} m</option>`;
-            });
-
-            if (nivelesInf.includes(oldNivelInf)) selNivelInf.value = oldNivelInf;
-            if (nivelesSup.includes(oldNivelSup)) selNivelSup.value = oldNivelSup;
+            if (nombresNivel.includes(oldNombreNivel)) selNombreNivel.value = oldNombreNivel;
         }
 
         // ON FILTER CHANGED
@@ -6752,8 +6790,7 @@
                 if (filterState.capitulo && row.CAPITULO !== filterState.capitulo) return false;
                 if (filterState.diametro && row['DIAM.'] !== filterState.diametro) return false;
                 if (filterState.posicion && row['POSICION ACERO'] !== filterState.posicion) return false;
-                if (filterState.nivel_inf && String(row['NIVEL INF.']) !== filterState.nivel_inf) return false;
-                if (filterState.nivel_sup && String(row['NIVEL SUP.']) !== filterState.nivel_sup) return false;
+                if (filterState.nombre_nivel && (row['NOMBRE DE NIVEL'] || '') !== filterState.nombre_nivel) return false;
                 return true;
             });
 
@@ -6769,6 +6806,7 @@
             
             tableCurrentPage = 1;
             renderTable();
+            renderPartidasSummary();
         }
 
         function renderFilterTags() {
@@ -6782,8 +6820,7 @@
                     if (key === 'capitulo') label = 'CAPÍTULO';
                     if (key === 'diametro') label = 'DIÁMETRO';
                     if (key === 'posicion') label = 'POSICIÓN';
-                    if (key === 'nivel_inf') label = 'NIVEL INF.';
-                    if (key === 'nivel_sup') label = 'NIVEL SUP.';
+                    if (key === 'nombre_nivel') label = 'NIVEL';
 
                     const tag = document.createElement('div');
                     tag.className = 'filter-tag';
@@ -6832,12 +6869,16 @@
                 .filter(row => row.CAPITULO === 'OBRAS PREPARATORIAS P/ESTRUCTURAS' && row.DESCRIPCIÓN.includes('EXCAVACION'))
                 .reduce((acc, curr) => acc + curr['TOTAL m3'], 0);
 
+            // Count unique Partidas
+            const uniquePartidas = [...new Set(filteredData.map(r => r.DESCRIPCIÓN).filter(Boolean))].length;
+
             // Set Values
             document.getElementById('kpi-steel').innerText = steelSum.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
             document.getElementById('kpi-concrete').innerText = concreteSum.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
             document.getElementById('kpi-formwork').innerText = formworkSum.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
             document.getElementById('kpi-excavation').innerText = excavationSum.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
             document.getElementById('kpi-elements').innerText = filteredData.length;
+            document.getElementById('kpi-partidas').innerText = uniquePartidas;
         }
 
         // SPARKLINES GENERATOR (KPI CARDS TRENDS)
@@ -6885,6 +6926,15 @@
             // 5. Total items sparkline
             const itemsSparkData = filteredData.slice(-10).map(r => r['TOTAL PZAS'] || 1);
             createSparkline('spark-elements', itemsSparkData.length > 0 ? itemsSparkData : [1, 1, 1, 1, 1], warningColor);
+
+            // 6. Partidas sparkline
+            const uniquePartidasHistory = [];
+            for (let i = 9; i >= 0; i--) {
+                const subset = filteredData.slice(0, filteredData.length - i);
+                const uniqueCount = [...new Set(subset.map(r => r.DESCRIPCIÓN).filter(Boolean))].length;
+                uniquePartidasHistory.push(uniqueCount || 1);
+            }
+            createSparkline('spark-partidas', uniquePartidasHistory, purpleColor);
         }
 
         function createSparkline(elementId, seriesData, color) {
@@ -7496,6 +7546,170 @@
             link.click();
             document.body.removeChild(link);
             showToast('Archivo CSV exportado exitosamente.', 'success');
+        }
+
+        // AGGREGATED PARTIDAS SUMMARY TABLE
+        function renderPartidasSummary() {
+            const searchVal = document.getElementById('search-box-partidas').value.toLowerCase().trim();
+            const tbody = document.getElementById('partidas-table-body');
+            tbody.innerHTML = '';
+
+            // Group filteredData by DESCRIPCIÓN
+            const groups = {};
+            filteredData.forEach(row => {
+                const desc = row.DESCRIPCIÓN || 'Sin Descripción';
+                if (!groups[desc]) {
+                    groups[desc] = {
+                        covenin: row.COVENIN || 'S/C',
+                        capitulo: row.CAPITULO || '',
+                        unidad: row.UNIDAD || '',
+                        qty: 0,
+                        computosCount: 0
+                    };
+                }
+                groups[desc].computosCount++;
+
+                // Sum quantities based on the unit of that row
+                const unit = (row.UNIDAD || '').toUpperCase();
+                if (unit === 'KGF') {
+                    groups[desc].qty += row['TOTAL KGF'] || 0;
+                } else if (unit === 'M2') {
+                    groups[desc].qty += row['TOTAL m2'] || 0;
+                } else if (unit === 'M3') {
+                    groups[desc].qty += row['TOTAL m3'] || 0;
+                } else {
+                    // Fallback
+                    groups[desc].qty += row['TOTAL m3'] || row['TOTAL m2'] || row['TOTAL KGF'] || 0;
+                }
+            });
+
+            // Convert to array
+            let partidasList = Object.entries(groups).map(([desc, g]) => ({
+                descripcion: desc,
+                covenin: g.covenin,
+                capitulo: g.capitulo,
+                unidad: g.unidad,
+                qty: g.qty,
+                computosCount: g.computosCount
+            }));
+
+            // Search filter
+            if (searchVal) {
+                partidasList = partidasList.filter(p => {
+                    return p.descripcion.toLowerCase().includes(searchVal) || 
+                           p.covenin.toLowerCase().includes(searchVal) || 
+                           p.capitulo.toLowerCase().includes(searchVal);
+                });
+            }
+
+            if (partidasList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 30px; color: var(--text-secondary);">No se encontraron partidas.</td></tr>`;
+                return;
+            }
+
+            // Compute maximum quantity for Looker Studio style progress bar
+            const maxQty = Math.max(...partidasList.map(p => p.qty)) || 1;
+
+            partidasList.forEach(p => {
+                const tr = document.createElement('tr');
+                
+                let capClass = 'c-bases';
+                if (p.capitulo === 'ACEROS') capClass = 'c-aceros';
+                else if (p.capitulo === 'CONCRETOS') capClass = 'c-concretos';
+                else if (p.capitulo === 'ENCOFRADOS') capClass = 'c-encofrados';
+                else if (p.capitulo === 'OBRAS PREPARATORIAS P/ESTRUCTURAS') capClass = 'c-preparatorias';
+
+                const barWidth = Math.round((p.qty / maxQty) * 100);
+
+                tbody.appendChild(tr);
+                tr.innerHTML = `
+                    <td style="font-family:'Inter'; font-weight:600; color: var(--primary-color);">${p.covenin}</td>
+                    <td><span class="cell-tag ${capClass}">${p.capitulo}</span></td>
+                    <td style="font-weight:600; font-size:0.85rem; line-height:1.4;">${p.descripcion}</td>
+                    <td><strong>${p.unidad}</strong></td>
+                    <td class="bar-cell">
+                        <div class="bar-cell-bg" style="width: ${barWidth}%;"></div>
+                        <span class="bar-cell-text">${p.qty.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${p.unidad}</span>
+                    </td>
+                    <td><span style="font-weight:700; color:var(--success-color);">${p.computosCount}</span> cómputos</td>
+                `;
+            });
+        }
+
+        // EXPORT PARTIDAS SUMMARY TO CSV
+        function exportPartidasCSV() {
+            // Group filteredData by DESCRIPCIÓN
+            const groups = {};
+            filteredData.forEach(row => {
+                const desc = row.DESCRIPCIÓN || 'Sin Descripción';
+                if (!groups[desc]) {
+                    groups[desc] = {
+                        covenin: row.COVENIN || 'S/C',
+                        capitulo: row.CAPITULO || '',
+                        unidad: row.UNIDAD || '',
+                        qty: 0,
+                        computosCount: 0
+                    };
+                }
+                groups[desc].computosCount++;
+
+                const unit = (row.UNIDAD || '').toUpperCase();
+                if (unit === 'KGF') {
+                    groups[desc].qty += row['TOTAL KGF'] || 0;
+                } else if (unit === 'M2') {
+                    groups[desc].qty += row['TOTAL m2'] || 0;
+                } else if (unit === 'M3') {
+                    groups[desc].qty += row['TOTAL m3'] || 0;
+                } else {
+                    groups[desc].qty += row['TOTAL m3'] || row['TOTAL m2'] || row['TOTAL KGF'] || 0;
+                }
+            });
+
+            const partidasList = Object.entries(groups).map(([desc, g]) => ({
+                descripcion: desc,
+                covenin: g.covenin,
+                capitulo: g.capitulo,
+                unidad: g.unidad,
+                qty: g.qty,
+                computosCount: g.computosCount
+            }));
+
+            if (partidasList.length === 0) {
+                showToast('No hay datos disponibles para exportar.', 'danger');
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "COVENIN,CAPITULO,DESCRIPCION,UNIDAD,CANTIDAD TOTAL,COMPUTOS
+";
+
+            partidasList.forEach(p => {
+                let desc = p.descripcion.replace(/"/g, '""');
+                if (desc.includes(',') || desc.includes('
+') || desc.includes('"')) {
+                    desc = `"${desc}"`;
+                }
+                
+                let cap = p.capitulo.replace(/"/g, '""');
+                if (cap.includes(',') || cap.includes('"')) {
+                    cap = `"${cap}"`;
+                }
+
+                const line = [p.covenin, cap, desc, p.unidad, p.qty.toFixed(2), p.computosCount];
+                csvContent += line.join(",") + "
+";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            
+            const timestamp = new Date().toISOString().slice(0, 10);
+            link.setAttribute("download", `resumen_partidas_${timestamp}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('Resumen de partidas exportado exitosamente.', 'success');
         }
     </script>
 </body>
