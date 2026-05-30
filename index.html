@@ -1308,12 +1308,10 @@
                     <table id="partidas-table">
                         <thead>
                             <tr>
-                                <th style="width: 45%;">DESCRIPCIÓN DE LA PARTIDA</th>
-                                <th>COVENIN</th>
-                                <th>UNIDAD</th>
-                                <th>CANTIDAD TOTAL</th>
-                                <th>CAPÍTULO</th>
-                                <th>CÓMPUTOS</th>
+                                <th style="width: 50%;">DESCRIPCIÓN</th>
+                                <th style="width: 10%;">UNIDAD</th>
+                                <th style="width: 15%;">CANTIDAD</th>
+                                <th style="width: 25%;">TOTAL</th>
                             </tr>
                         </thead>
                         <tbody id="partidas-table-body">
@@ -7562,9 +7560,13 @@
             // Group filteredData by DESCRIPCIÓN
             const groups = {};
             filteredData.forEach(row => {
-                const desc = row.DESCRIPCIÓN || 'Sin Descripción';
-                if (!groups[desc]) {
-                    groups[desc] = {
+                const rawDesc = row.DESCRIPCIÓN || 'Sin Descripción';
+                const desc = rawDesc.trim();
+                const descKey = desc.toUpperCase();
+
+                if (!groups[descKey]) {
+                    groups[descKey] = {
+                        descripcion: desc,
                         covenin: row.COVENIN || 'S/C',
                         capitulo: row.CAPITULO || '',
                         unidad: row.UNIDAD || '',
@@ -7572,31 +7574,24 @@
                         computosCount: 0
                     };
                 }
-                groups[desc].computosCount++;
+                groups[descKey].computosCount++;
 
                 // Sum quantities based on the unit of that row
                 const unit = (row.UNIDAD || '').toUpperCase();
                 if (unit === 'KGF') {
-                    groups[desc].qty += row['TOTAL KGF'] || 0;
+                    groups[descKey].qty += row['TOTAL KGF'] || 0;
                 } else if (unit === 'M2') {
-                    groups[desc].qty += row['TOTAL m2'] || 0;
+                    groups[descKey].qty += row['TOTAL m2'] || 0;
                 } else if (unit === 'M3') {
-                    groups[desc].qty += row['TOTAL m3'] || 0;
+                    groups[descKey].qty += row['TOTAL m3'] || 0;
                 } else {
                     // Fallback
-                    groups[desc].qty += row['TOTAL m3'] || row['TOTAL m2'] || row['TOTAL KGF'] || 0;
+                    groups[descKey].qty += row['TOTAL m3'] || row['TOTAL m2'] || row['TOTAL KGF'] || 0;
                 }
             });
 
             // Convert to array
-            let partidasList = Object.entries(groups).map(([desc, g]) => ({
-                descripcion: desc,
-                covenin: g.covenin,
-                capitulo: g.capitulo,
-                unidad: g.unidad,
-                qty: g.qty,
-                computosCount: g.computosCount
-            }));
+            let partidasList = Object.values(groups);
 
             // Search filter
             if (searchVal) {
@@ -7629,14 +7624,12 @@
                 tbody.appendChild(tr);
                 tr.innerHTML = `
                     <td style="font-weight:600; font-size:0.85rem; line-height:1.4; color: var(--text-primary);">${p.descripcion}</td>
-                    <td style="font-family:'Inter'; font-weight:600; color: var(--primary-color);">${p.covenin}</td>
                     <td><strong>${p.unidad}</strong></td>
+                    <td><span style="font-weight:700; color:var(--success-color);">${p.computosCount}</span> cómputos</td>
                     <td class="bar-cell">
                         <div class="bar-cell-bg" style="width: ${barWidth}%;"></div>
                         <span class="bar-cell-text">${p.qty.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${p.unidad}</span>
                     </td>
-                    <td><span class="cell-tag ${capClass}">${p.capitulo}</span></td>
-                    <td><span style="font-weight:700; color:var(--success-color);">${p.computosCount}</span> cómputos</td>
                 `;
             });
         }
@@ -7646,9 +7639,13 @@
             // Group filteredData by DESCRIPCIÓN
             const groups = {};
             filteredData.forEach(row => {
-                const desc = row.DESCRIPCIÓN || 'Sin Descripción';
-                if (!groups[desc]) {
-                    groups[desc] = {
+                const rawDesc = row.DESCRIPCIÓN || 'Sin Descripción';
+                const desc = rawDesc.trim();
+                const descKey = desc.toUpperCase();
+
+                if (!groups[descKey]) {
+                    groups[descKey] = {
+                        descripcion: desc,
                         covenin: row.COVENIN || 'S/C',
                         capitulo: row.CAPITULO || '',
                         unidad: row.UNIDAD || '',
@@ -7656,28 +7653,21 @@
                         computosCount: 0
                     };
                 }
-                groups[desc].computosCount++;
+                groups[descKey].computosCount++;
 
                 const unit = (row.UNIDAD || '').toUpperCase();
                 if (unit === 'KGF') {
-                    groups[desc].qty += row['TOTAL KGF'] || 0;
+                    groups[descKey].qty += row['TOTAL KGF'] || 0;
                 } else if (unit === 'M2') {
-                    groups[desc].qty += row['TOTAL m2'] || 0;
+                    groups[descKey].qty += row['TOTAL m2'] || 0;
                 } else if (unit === 'M3') {
-                    groups[desc].qty += row['TOTAL m3'] || 0;
+                    groups[descKey].qty += row['TOTAL m3'] || 0;
                 } else {
-                    groups[desc].qty += row['TOTAL m3'] || row['TOTAL m2'] || row['TOTAL KGF'] || 0;
+                    groups[descKey].qty += row['TOTAL m3'] || row['TOTAL m2'] || row['TOTAL KGF'] || 0;
                 }
             });
 
-            const partidasList = Object.entries(groups).map(([desc, g]) => ({
-                descripcion: desc,
-                covenin: g.covenin,
-                capitulo: g.capitulo,
-                unidad: g.unidad,
-                qty: g.qty,
-                computosCount: g.computosCount
-            }));
+            const partidasList = Object.values(groups);
 
             if (partidasList.length === 0) {
                 showToast('No hay datos disponibles para exportar.', 'danger');
@@ -7685,20 +7675,15 @@
             }
 
             let csvContent = "data:text/csv;charset=utf-8,";
-            csvContent += "COVENIN,CAPITULO,DESCRIPCION,UNIDAD,CANTIDAD TOTAL,COMPUTOS\r\n";
-
+            csvContent += "DESCRIPCION,UNIDAD,CANTIDAD,TOTAL\r\n";
+ 
             partidasList.forEach(p => {
                 let desc = p.descripcion.replace(/"/g, '""');
                 if (desc.includes(',') || desc.includes('\n') || desc.includes('"')) {
                     desc = `"${desc}"`;
                 }
-                
-                let cap = p.capitulo.replace(/"/g, '""');
-                if (cap.includes(',') || cap.includes('"')) {
-                    cap = `"${cap}"`;
-                }
-
-                const line = [p.covenin, cap, desc, p.unidad, p.qty.toFixed(2), p.computosCount];
+ 
+                const line = [desc, p.unidad, p.computosCount, p.qty.toFixed(2)];
                 csvContent += line.join(",") + "\r\n";
             });
 
