@@ -1308,11 +1308,11 @@
                     <table id="partidas-table">
                         <thead>
                             <tr>
-                                <th>COVENIN</th>
-                                <th>CAPÍTULO</th>
                                 <th style="width: 45%;">DESCRIPCIÓN DE LA PARTIDA</th>
+                                <th>COVENIN</th>
                                 <th>UNIDAD</th>
                                 <th>CANTIDAD TOTAL</th>
+                                <th>CAPÍTULO</th>
                                 <th>CÓMPUTOS</th>
                             </tr>
                         </thead>
@@ -6546,20 +6546,20 @@
         }
 
         function navigateToPanel(target) {
-            // Standard SPA smooth navigation
+            // Hide all tab panels first to avoid conflicts
+            document.getElementById('resumen-partidas-panel').style.display = 'none';
+            document.getElementById('datos-panel').style.display = 'none';
+
             if (target === 'vista-general') {
                 document.querySelector('.kpis-grid').style.display = 'grid';
                 document.querySelector('.filter-section').style.display = 'block';
                 document.querySelector('.dashboard-charts-grid').style.display = 'grid';
-                document.getElementById('resumen-partidas-panel').style.display = 'none';
                 document.getElementById('datos-panel').style.display = 'flex';
                 document.getElementById('main-title').innerText = "COMP-PUERTO AZUL";
             } else if (target === 'aceros-panel') {
                 document.querySelector('.kpis-grid').style.display = 'grid';
                 document.querySelector('.filter-section').style.display = 'block';
                 document.querySelector('.dashboard-charts-grid').style.display = 'grid';
-                document.getElementById('resumen-partidas-panel').style.display = 'none';
-                document.getElementById('datos-panel').style.display = 'none';
                 document.getElementById('main-title').innerText = "CONTROL DE ACEROS";
                 
                 // Focus on Steel filters
@@ -6570,7 +6570,6 @@
                 document.querySelector('.kpis-grid').style.display = 'grid';
                 document.querySelector('.filter-section').style.display = 'block';
                 document.querySelector('.dashboard-charts-grid').style.display = 'grid';
-                document.querySelector('.table-section').style.display = 'none';
                 document.getElementById('main-title').innerText = "CONCRETOS Y ENCOFRADOS";
                 
                 // Clear any Aceros forced filters
@@ -6579,11 +6578,17 @@
                     document.getElementById('filter-capitulo').value = '';
                     onFilterChanged();
                 }
+            } else if (target === 'resumen-partidas-panel') {
+                document.querySelector('.kpis-grid').style.display = 'none';
+                document.querySelector('.filter-section').style.display = 'block';
+                document.querySelector('.dashboard-charts-grid').style.display = 'none';
+                document.getElementById('resumen-partidas-panel').style.display = 'flex';
+                document.getElementById('main-title').innerText = "RESUMEN DE PARTIDAS";
             } else if (target === 'datos-panel') {
                 document.querySelector('.kpis-grid').style.display = 'none';
                 document.querySelector('.filter-section').style.display = 'block';
                 document.querySelector('.dashboard-charts-grid').style.display = 'none';
-                document.querySelector('.table-section').style.display = 'flex';
+                document.getElementById('datos-panel').style.display = 'flex';
                 document.getElementById('main-title').innerText = "EXPLORADOR DE DATOS";
             }
         }
@@ -7623,14 +7628,14 @@
 
                 tbody.appendChild(tr);
                 tr.innerHTML = `
+                    <td style="font-weight:600; font-size:0.85rem; line-height:1.4; color: var(--text-primary);">${p.descripcion}</td>
                     <td style="font-family:'Inter'; font-weight:600; color: var(--primary-color);">${p.covenin}</td>
-                    <td><span class="cell-tag ${capClass}">${p.capitulo}</span></td>
-                    <td style="font-weight:600; font-size:0.85rem; line-height:1.4;">${p.descripcion}</td>
                     <td><strong>${p.unidad}</strong></td>
                     <td class="bar-cell">
                         <div class="bar-cell-bg" style="width: ${barWidth}%;"></div>
                         <span class="bar-cell-text">${p.qty.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${p.unidad}</span>
                     </td>
+                    <td><span class="cell-tag ${capClass}">${p.capitulo}</span></td>
                     <td><span style="font-weight:700; color:var(--success-color);">${p.computosCount}</span> cómputos</td>
                 `;
             });
